@@ -107,12 +107,7 @@ def analyze_directory(dir_path: str, file_count: int) -> tuple[list[FiletypeInfo
             for file in files:
                 analyzed_files += 1
                 analysis_target_path = os.path.join(root, file)
-                (
-                    result_storages,
-                    others_storage,
-                    totals_storage,
-                    errored_files_count
-                ) = analyze_file(
+                result_storages, others_storage, totals_storage, errored_files_count = analyze_file(
                     analysis_target_path,
                     result_storages,
                     others_storage,
