@@ -65,8 +65,9 @@ def analyze_file(
         errored_files_count: int,
         thorough: bool,
         size_threshold: float,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int, bool]:
     counted = False
+    isbig = False
     try:
         if thorough:
             mime_type = magic.from_file(target_path, mime=True)
@@ -78,6 +79,7 @@ def analyze_file(
         if file_size > size_threshold * (2**30):
             bigfiles_storage.found_files += 1
             bigfiles_storage.found_size += file_size
+            isbig = True
         totals_storage.found_files += 1
         totals_storage.found_size += file_size
         for storage in result_storages:
@@ -88,13 +90,14 @@ def analyze_file(
         if not counted:
             others_storage.found_files += 1
             others_storage.found_size += file_size
-    except OSError:
+    except (OSError, magic.MagicException):
         errored_files_count += 1
     return (
         result_storages,
         others_storage,
         totals_storage,
-        errored_files_count
+        errored_files_count,
+        isbig,
     )
 
 
@@ -118,13 +121,14 @@ def analyze_directory(
         file_count: int,
         thorough: bool,
         size_threshold: float,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, int]:
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
     ]
     others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
     totals_storage = FiletypeInfoStorage("None", "Total")
     bigfiles_storage = FiletypeInfoStorage("None", "Big")
+    bigfiles_paths: list[str] = list()
     with Progress(
         SpinnerColumn(),
         TimeRemainingColumn(),
@@ -143,9 +147,10 @@ def analyze_directory(
         errored_files_count = 0
         for root, dirs, files in os.walk(dir_path):
             for file in files:
-                analyzed_files += 1
                 analysis_target_path = os.path.join(root, file)
-                result_storages, others_storage, totals_storage, errored_files_count = analyze_file(
+                progress.update(
+                    analysis_task_id, description=analysis_target_path, completed=analyzed_files)
+                result_storages, others_storage, totals_storage, errored_files_count, isbig = analyze_file(
                     analysis_target_path,
                     result_storages,
                     others_storage,
@@ -155,13 +160,15 @@ def analyze_directory(
                     thorough,
                     size_threshold,
                 )
-                progress.update(
-                    analysis_task_id, description=analysis_target_path, completed=analyzed_files)
+                if isbig:
+                    bigfiles_paths.append(analysis_target_path)
+                analyzed_files += 1
     return (
         result_storages,
         others_storage,
         totals_storage,
         bigfiles_storage,
+        bigfiles_paths,
         errored_files_count,
     )
 
@@ -228,13 +235,16 @@ def main(
     print(f"Preliminary file count: {file_count}")
 
     analysis_start_dt = datetime.now()
-    result_storages, others_storage, totals_storage, big_files_storage, errored_files_count = analyze_directory(
+    result_storages, others_storage, totals_storage, big_files_storage, bigfiles_paths, errored_files_count = analyze_directory(
         dir_path, file_count, thorough, size_threshold)
     analysis_duration = datetime.now() - analysis_start_dt
 
     display_results(
         result_storages, others_storage,
         totals_storage, big_files_storage, errored_files_count, analysis_duration, size_threshold)
+
+    with open('bigfiles.txt', 'w') as f:
+        f.write("\n".join(bigfiles_paths))
 
 
 if __name__ == "__main__":
