@@ -37,6 +37,16 @@ class FiletypeInfoStorage:
     displayable_name: str
 
 
+def check_path(path: str) -> None:
+    if not os.path.exists(path):
+        typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
+        raise typer.Exit()
+    if not os.path.isdir(path):
+        typer.secho("Incorrect path - should be a directory",
+                    fg=typer.colors.RED)
+        raise typer.Exit()
+
+
 def analyze_file(
     target_path: str,
     result_storages: list[FiletypeInfoStorage],
@@ -177,13 +187,7 @@ def main(
     output_path: Annotated[str, typer.Option(
         help="Path where reults will be output")] = "",
 ) -> None:
-    if not os.path.exists(dir_path):
-        typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
-        raise typer.Exit()
-    if not os.path.isdir(dir_path):
-        typer.secho("Incorrect path - should be a directory",
-                    fg=typer.colors.RED)
-        raise typer.Exit()
+    check_path(dir_path)
 
     file_count = count_files(dir_path)
     print(f"Preliminary file count: {file_count}")
