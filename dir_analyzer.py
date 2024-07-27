@@ -66,28 +66,7 @@ def analyze_file(
     )
 
 
-def main(
-    dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
-    size_treshold: Annotated[float, typer.Option(
-        help="File size in GiB that gets the file marked")] = 1,
-    output_path: Annotated[str, typer.Option(
-        help="Path where reults will be output")] = "",
-):
-
-    if not os.path.exists(dir_path):
-        typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
-        raise typer.Exit()
-    if not os.path.isdir(dir_path):
-        typer.secho("Incorrect path - should be a directory",
-                    fg=typer.colors.RED)
-        raise typer.Exit()
-
-    result_storages = [
-        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
-    ]
-    others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
-    totals_storage = FiletypeInfoStorage("None", "Total")
-
+def count_files(dir_path: str) -> int:
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -99,8 +78,15 @@ def main(
         for root, dirs, files in os.walk(dir_path):
             for file in files:
                 file_count += 1
-    print(f"Preliminary file count: {file_count}")
+    return file_count
 
+
+def analyze_directory(dir_path: str, file_count: int) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
+    result_storages = [
+        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
+    ]
+    others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
+    totals_storage = FiletypeInfoStorage("None", "Total")
     with Progress(
         SpinnerColumn(),
         TimeRemainingColumn(),
@@ -135,6 +121,35 @@ def main(
                 )
                 progress.update(
                     analysis_task_id, description=analysis_target_path, completed=analyzed_files)
+    return (
+        result_storages,
+        others_storage,
+        totals_storage,
+        errored_files_count
+    )
+
+
+def main(
+    dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
+    size_treshold: Annotated[float, typer.Option(
+        help="File size in GiB that gets the file marked")] = 1,
+    output_path: Annotated[str, typer.Option(
+        help="Path where reults will be output")] = "",
+) -> None:
+
+    if not os.path.exists(dir_path):
+        typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
+        raise typer.Exit()
+    if not os.path.isdir(dir_path):
+        typer.secho("Incorrect path - should be a directory",
+                    fg=typer.colors.RED)
+        raise typer.Exit()
+
+    file_count = count_files(dir_path)
+    print(f"Preliminary file count: {file_count}")
+
+    result_storages, others_storage, totals_storage, errored_files_count = analyze_directory(
+        dir_path, file_count)
 
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
