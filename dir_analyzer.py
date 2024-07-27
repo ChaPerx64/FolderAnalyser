@@ -35,10 +35,35 @@ class FiletypeInfoStorage:
     displayable_name: str
 
 
-result_storages = [
-    FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
-]
-others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
+def analyze_file(
+    target_path: str,
+    result_storages: list[FiletypeInfoStorage],
+    others_storage: FiletypeInfoStorage,
+    totals_storage: FiletypeInfoStorage,
+    errored_files_count: int,
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
+    counted = False
+    try:
+        mime_type = magic.from_file(target_path, mime=True)
+        file_size = os.path.getsize(target_path)
+        totals_storage.found_files += 1
+        totals_storage.found_size += file_size
+        for storage in result_storages:
+            if mime_type.startswith(storage.tag):
+                storage.found_files += 1
+                storage.found_size += file_size
+                counted = True
+        if not counted:
+            others_storage.found_files += 1
+            others_storage.found_size += file_size
+    except OSError:
+        errored_files_count += 1
+    return (
+        result_storages,
+        others_storage,
+        totals_storage,
+        errored_files_count
+    )
 
 
 def main(
@@ -56,6 +81,12 @@ def main(
         typer.secho("Incorrect path - should be a directory",
                     fg=typer.colors.RED)
         raise typer.Exit()
+
+    result_storages = [
+        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
+    ]
+    others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
+    totals_storage = FiletypeInfoStorage("None", "Total")
 
     with Progress(
         SpinnerColumn(),
@@ -81,37 +112,29 @@ def main(
         transient=True,
     ) as progress:
         analyzed_files = 0
-        analysis_target = str(dir_path)
+        analysis_target_path = str(dir_path)
         analysis_task_id = progress.add_task(
-            description=analysis_target, total=file_count, completed=analyzed_files
+            description=analysis_target_path, total=file_count, completed=analyzed_files
         )
-        total_file_count = 0
-        total_file_size = 0
         errored_files_count = 0
         for root, dirs, files in os.walk(dir_path):
             for file in files:
                 analyzed_files += 1
-                analysis_target = str(os.path.join(root, file))
-                counted = False
-                try:
-                    mime_type = magic.from_file(
-                        os.path.join(root, file), mime=True
-                    )
-                    file_size = os.path.getsize(analysis_target)
-                    total_file_size += file_size
-                    for storage in result_storages:
-                        if mime_type.startswith(storage.tag):
-                            storage.found_files += 1
-                            storage.found_size += file_size
-                            counted = True
-                    if not counted:
-                        others_storage.found_files += 1
-                        others_storage.found_size += file_size
-                    total_file_count += 1
-                except OSError:
-                    errored_files_count += 1
+                analysis_target_path = os.path.join(root, file)
+                (
+                    result_storages,
+                    others_storage,
+                    totals_storage,
+                    errored_files_count
+                ) = analyze_file(
+                    analysis_target_path,
+                    result_storages,
+                    others_storage,
+                    totals_storage,
+                    errored_files_count
+                )
                 progress.update(
-                    analysis_task_id, description=analysis_target, completed=analyzed_files)
+                    analysis_task_id, description=analysis_target_path, completed=analyzed_files)
 
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
@@ -136,8 +159,8 @@ def main(
     result_table.add_section()
     result_table.add_row(
         "Totals",
-        str(total_file_count),
-        str(naturalsize(total_file_size)),
+        str(totals_storage.found_files),
+        str(naturalsize(totals_storage.found_size)),
     )
     print(result_table)
 
