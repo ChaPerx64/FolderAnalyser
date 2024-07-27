@@ -5,6 +5,7 @@ from rich import print
 from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
 from rich.table import Table, Column
 import magic
+import mimetypes
 from dataclasses import dataclass
 from humanize import naturalsize
 from datetime import datetime
@@ -42,10 +43,16 @@ def analyze_file(
     others_storage: FiletypeInfoStorage,
     totals_storage: FiletypeInfoStorage,
     errored_files_count: int,
+    thorough: bool,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
     counted = False
     try:
-        mime_type = magic.from_file(target_path, mime=True)
+        if thorough:
+            mime_type = magic.from_file(target_path, mime=True)
+        else:
+            mime_type, _ = mimetypes.guess_type(target_path, strict=False)
+            if mime_type is None:
+                mime_type = ""
         file_size = os.path.getsize(target_path)
         totals_storage.found_files += 1
         totals_storage.found_size += file_size
@@ -82,7 +89,7 @@ def count_files(dir_path: str) -> int:
     return file_count
 
 
-def analyze_directory(dir_path: str, file_count: int) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
+def analyze_directory(dir_path: str, file_count: int, thorough: bool) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
     ]
@@ -113,7 +120,8 @@ def analyze_directory(dir_path: str, file_count: int) -> tuple[list[FiletypeInfo
                     result_storages,
                     others_storage,
                     totals_storage,
-                    errored_files_count
+                    errored_files_count,
+                    thorough,
                 )
                 progress.update(
                     analysis_task_id, description=analysis_target_path, completed=analyzed_files)
@@ -127,6 +135,7 @@ def analyze_directory(dir_path: str, file_count: int) -> tuple[list[FiletypeInfo
 
 def main(
     dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
+    thorough: bool = False,
     size_treshold: Annotated[float, typer.Option(
         help="File size in GiB that gets the file marked")] = 1,
     output_path: Annotated[str, typer.Option(
@@ -146,7 +155,7 @@ def main(
 
     analysis_start_dt = datetime.now()
     result_storages, others_storage, totals_storage, errored_files_count = analyze_directory(
-        dir_path, file_count)
+        dir_path, file_count, thorough)
     analysis_duration = datetime.now() - analysis_start_dt
 
     result_table = Table(title="Directory analysis results")
