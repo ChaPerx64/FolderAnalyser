@@ -1,14 +1,16 @@
-from typing import Annotated
-import os
-import typer
-from rich import print
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TimeRemainingColumn
-from rich.table import Table, Column
-import magic
 import mimetypes
+import os
 from dataclasses import dataclass
-from humanize import naturalsize
 from datetime import datetime, timedelta
+from typing import Annotated
+
+import magic
+import typer
+from humanize import naturalsize
+from rich import print
+from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
+                           TimeRemainingColumn)
+from rich.table import Column, Table
 
 searchable_types = {
     "Image": {
@@ -48,13 +50,12 @@ def check_path(path: str) -> None:
 
 
 def analyze_file(
-    target_path: str,
-    result_storages: list[FiletypeInfoStorage],
-    others_storage: FiletypeInfoStorage,
-    totals_storage: FiletypeInfoStorage,
-    errored_files_count: int,
-    thorough: bool,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
+        target_path: str,
+        result_storages: list[FiletypeInfoStorage],
+        others_storage: FiletypeInfoStorage,
+        totals_storage: FiletypeInfoStorage,
+        errored_files_count: int,
+        thorough: bool) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
     counted = False
     try:
         if thorough:
@@ -99,7 +100,10 @@ def count_files(dir_path: str) -> int:
     return file_count
 
 
-def analyze_directory(dir_path: str, file_count: int, thorough: bool) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
+def analyze_directory(
+        dir_path: str,
+        file_count: int,
+        thorough: bool) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int]:
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
     ]
