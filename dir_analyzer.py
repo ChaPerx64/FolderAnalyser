@@ -56,6 +56,21 @@ def check_size_threshold(size_threshold: float) -> None:
         raise typer.Exit()
 
 
+def count_files(dir_path: str) -> int:
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        transient=True,
+    ) as progress:
+        progress.add_task(
+            description=f"Counting files in `{dir_path}` for estimation...", total=None)
+        file_count = 0
+        for root, dirs, files in os.walk(dir_path):
+            for file in files:
+                file_count += 1
+    return file_count
+
+
 def analyze_file(
         target_path: str,
         result_storages: list[FiletypeInfoStorage],
@@ -99,21 +114,6 @@ def analyze_file(
         errored_files_count,
         isbig,
     )
-
-
-def count_files(dir_path: str) -> int:
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        transient=True,
-    ) as progress:
-        progress.add_task(
-            description=f"Counting files in `{dir_path}` for estimation...", total=None)
-        file_count = 0
-        for root, dirs, files in os.walk(dir_path):
-            for file in files:
-                file_count += 1
-    return file_count
 
 
 def analyze_directory(
