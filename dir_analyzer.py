@@ -7,6 +7,7 @@ from rich.table import Table, Column
 import magic
 from dataclasses import dataclass
 from humanize import naturalsize
+from datetime import datetime
 
 searchable_types = {
     "Image": {
@@ -143,8 +144,10 @@ def main(
     file_count = count_files(dir_path)
     print(f"Preliminary file count: {file_count}")
 
+    analysis_start_dt = datetime.now()
     result_storages, others_storage, totals_storage, errored_files_count = analyze_directory(
         dir_path, file_count)
+    analysis_duration = datetime.now() - analysis_start_dt
 
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
@@ -173,6 +176,7 @@ def main(
         str(naturalsize(totals_storage.found_size)),
     )
     print(result_table)
+    print(f"Analysis duration: {analysis_duration}")
 
 
 if __name__ == "__main__":
