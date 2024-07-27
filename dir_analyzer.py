@@ -8,7 +8,7 @@ import magic
 import mimetypes
 from dataclasses import dataclass
 from humanize import naturalsize
-from datetime import datetime
+from datetime import datetime, timedelta
 
 searchable_types = {
     "Image": {
@@ -133,31 +133,12 @@ def analyze_directory(dir_path: str, file_count: int, thorough: bool) -> tuple[l
     )
 
 
-def main(
-    dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
-    thorough: bool = False,
-    size_treshold: Annotated[float, typer.Option(
-        help="File size in GiB that gets the file marked")] = 1,
-    output_path: Annotated[str, typer.Option(
-        help="Path where reults will be output")] = "",
-) -> None:
-
-    if not os.path.exists(dir_path):
-        typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
-        raise typer.Exit()
-    if not os.path.isdir(dir_path):
-        typer.secho("Incorrect path - should be a directory",
-                    fg=typer.colors.RED)
-        raise typer.Exit()
-
-    file_count = count_files(dir_path)
-    print(f"Preliminary file count: {file_count}")
-
-    analysis_start_dt = datetime.now()
-    result_storages, others_storage, totals_storage, errored_files_count = analyze_directory(
-        dir_path, file_count, thorough)
-    analysis_duration = datetime.now() - analysis_start_dt
-
+def display_results(
+        result_storages: list[FiletypeInfoStorage],
+        others_storage: FiletypeInfoStorage,
+        totals_storage: FiletypeInfoStorage,
+        errored_files_count: int,
+        analysis_duration: timedelta) -> None:
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
     result_table.add_column("Files found")
@@ -186,6 +167,35 @@ def main(
     )
     print(result_table)
     print(f"Analysis duration: {analysis_duration}")
+
+
+def main(
+    dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
+    thorough: bool = False,
+    size_treshold: Annotated[float, typer.Option(
+        help="File size in GiB that gets the file marked")] = 1,
+    output_path: Annotated[str, typer.Option(
+        help="Path where reults will be output")] = "",
+) -> None:
+    if not os.path.exists(dir_path):
+        typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
+        raise typer.Exit()
+    if not os.path.isdir(dir_path):
+        typer.secho("Incorrect path - should be a directory",
+                    fg=typer.colors.RED)
+        raise typer.Exit()
+
+    file_count = count_files(dir_path)
+    print(f"Preliminary file count: {file_count}")
+
+    analysis_start_dt = datetime.now()
+    result_storages, others_storage, totals_storage, errored_files_count = analyze_directory(
+        dir_path, file_count, thorough)
+    analysis_duration = datetime.now() - analysis_start_dt
+
+    display_results(
+        result_storages, others_storage,
+        totals_storage, errored_files_count, analysis_duration)
 
 
 if __name__ == "__main__":
