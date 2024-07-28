@@ -1,5 +1,6 @@
 import mimetypes
 import os
+import stat
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Annotated
@@ -116,12 +117,34 @@ def analyze_file(
     )
 
 
+def analyze_file_permissions(file_path: str) -> str | None:
+    mode = os.stat(file_path).st_mode
+    warning_message = None
+    if mode & stat.S_IWOTH:
+        warning_message = f"WARNING: world-writable - '{file_path}'"
+
+    if mode & stat.S_ISUID:
+        warning_message = f"WARNING: SUID is set - '{file_path}'"
+
+    if mode & stat.S_ISGID:
+        warning_message = f"WARNING: SGID bit set - '{file_path}'"
+
+    return warning_message
+
+
+def analyze_dir_permissions(dir_path: str) -> str | None:
+    warning_message = None
+    if os.stat(dir_path).st_mode & stat.S_IWOTH:
+        warning_message = f"WARNING: world-writable - '{dir_path}'"
+    return warning_message
+
+
 def analyze_directory(
         dir_path: str,
         file_count: int,
         thorough: bool,
         size_threshold: float,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], list[str], int]:
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
     ]
@@ -129,6 +152,7 @@ def analyze_directory(
     totals_storage = FiletypeInfoStorage("None", "Total")
     bigfiles_storage = FiletypeInfoStorage("None", "Big")
     bigfiles_paths: list[str] = list()
+    permission_warnings: list[str] = list()
     with Progress(
         SpinnerColumn(),
         TimeRemainingColumn(),
@@ -146,10 +170,23 @@ def analyze_directory(
         )
         errored_files_count = 0
         for root, dirs, files in os.walk(dir_path):
+            for dir in dirs:
+                try:
+                    permission_warning = analyze_dir_permissions(os.path.join(root, dir))
+                    if permission_warning:
+                        permission_warnings.append(permission_warning)
+                except OSError:
+                    pass
             for file in files:
                 analysis_target_path = os.path.join(root, file)
                 progress.update(
                     analysis_task_id, description=analysis_target_path, completed=analyzed_files)
+                try:
+                    permission_warning = analyze_file_permissions(analysis_target_path)
+                    if permission_warning:
+                        permission_warnings.append(permission_warning)
+                except OSError:
+                    pass
                 result_storages, others_storage, totals_storage, errored_files_count, isbig = analyze_file(
                     analysis_target_path,
                     result_storages,
@@ -169,6 +206,7 @@ def analyze_directory(
         totals_storage,
         bigfiles_storage,
         bigfiles_paths,
+        permission_warnings,
         errored_files_count,
     )
 
@@ -235,7 +273,7 @@ def main(
     print(f"Preliminary file count: {file_count}")
 
     analysis_start_dt = datetime.now()
-    result_storages, others_storage, totals_storage, big_files_storage, bigfiles_paths, errored_files_count = analyze_directory(
+    result_storages, others_storage, totals_storage, big_files_storage, bigfiles_paths, permission_warnings, errored_files_count = analyze_directory(
         dir_path, file_count, thorough, size_threshold)
     analysis_duration = datetime.now() - analysis_start_dt
 
@@ -245,6 +283,8 @@ def main(
 
     with open('bigfiles.txt', 'w') as f:
         f.write("\n".join(bigfiles_paths))
+    with open('permissions.txt', 'w') as f:
+        f.write("\n".join(permission_warnings))
 
 
 if __name__ == "__main__":
