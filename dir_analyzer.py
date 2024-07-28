@@ -3,7 +3,8 @@ import os
 import stat
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
+import json
 
 import magic
 import typer
@@ -13,23 +14,36 @@ from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
                            TimeRemainingColumn)
 from rich.table import Column, Table
 
-searchable_types = {
-    "Image": {
-        "tag": "image/",
-    },
-    "Text": {
-        "tag": "text/",
-    },
-    "Audio": {
-        "tag": "audio/",
-    },
-    "Video": {
-        "tag": "video/",
-    },
-    "Application": {
-        "tag": "application/",
-    },
+
+CONFIG_PATH = "./config.json"
+
+DEFAULT_CONFIG = {
+    "searchable_types": {
+        "Image": {
+            "tag": "image/",
+        },
+        "Text": {
+            "tag": "text/",
+        },
+        "Audio": {
+            "tag": "audio/",
+        },
+        "Video": {
+            "tag": "video/",
+        },
+        "Application": {
+            "tag": "application/",
+        },
+    }
 }
+
+
+def get_config() -> Any:
+    if not os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(DEFAULT_CONFIG, f, indent=2)
+    with open(CONFIG_PATH, 'r') as f:
+        return json.load(f)
 
 
 @dataclass
@@ -142,8 +156,9 @@ def analyze_filesystem(
         thorough: bool,
         size_threshold: float,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
+    config = get_config()
     result_storages = [
-        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
+        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in config["searchable_types"].items()
     ]
     others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
     totals_storage = FiletypeInfoStorage("None", "Total")
