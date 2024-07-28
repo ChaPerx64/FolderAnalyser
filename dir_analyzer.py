@@ -78,41 +78,36 @@ def analyze_file(
         others_storage: FiletypeInfoStorage,
         totals_storage: FiletypeInfoStorage,
         bigfiles_storage: FiletypeInfoStorage,
-        errored_files_count: int,
         thorough: bool,
         size_threshold: float,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, int, bool]:
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, bool]:
     counted = False
     isbig = False
-    try:
-        if thorough:
-            mime_type = magic.from_file(target_path, mime=True)
-        else:
-            mime_type, _ = mimetypes.guess_type(target_path, strict=False)
-            if mime_type is None:
-                mime_type = ""
-        file_size = os.path.getsize(target_path)
-        if file_size > size_threshold * (2**30):
-            bigfiles_storage.found_files += 1
-            bigfiles_storage.found_size += file_size
-            isbig = True
-        totals_storage.found_files += 1
-        totals_storage.found_size += file_size
-        for storage in result_storages:
-            if mime_type.startswith(storage.tag):
-                storage.found_files += 1
-                storage.found_size += file_size
-                counted = True
-        if not counted:
-            others_storage.found_files += 1
-            others_storage.found_size += file_size
-    except (OSError, magic.MagicException):
-        errored_files_count += 1
+    if thorough:
+        mime_type = magic.from_file(target_path, mime=True)
+    else:
+        mime_type, _ = mimetypes.guess_type(target_path, strict=False)
+        if mime_type is None:
+            mime_type = ""
+    file_size = os.path.getsize(target_path)
+    if file_size > size_threshold * (2**30):
+        bigfiles_storage.found_files += 1
+        bigfiles_storage.found_size += file_size
+        isbig = True
+    totals_storage.found_files += 1
+    totals_storage.found_size += file_size
+    for storage in result_storages:
+        if mime_type.startswith(storage.tag):
+            storage.found_files += 1
+            storage.found_size += file_size
+            counted = True
+    if not counted:
+        others_storage.found_files += 1
+        others_storage.found_size += file_size
     return (
         result_storages,
         others_storage,
         totals_storage,
-        errored_files_count,
         isbig,
     )
 
@@ -139,8 +134,8 @@ def analyze_dir_permissions(dir_path: str) -> str | None:
     return warning_message
 
 
-def analyze_directory(
-        dir_path: str,
+def analyze_filesystem(
+        root_dir_path: str,
         file_count: int,
         thorough: bool,
         size_threshold: float,
@@ -164,19 +159,18 @@ def analyze_directory(
         transient=True,
     ) as progress:
         analyzed_files = 0
-        analysis_target_path = str(dir_path)
         analysis_task_id = progress.add_task(
-            description=analysis_target_path, total=file_count, completed=analyzed_files
+            description=root_dir_path, total=file_count, completed=analyzed_files
         )
-        errored_files_count = 0
-        for root, dirs, files in os.walk(dir_path):
+        errors_count = 0
+        for root, dirs, files in os.walk(root_dir_path):
             for dir in dirs:
                 try:
                     permission_warning = analyze_dir_permissions(os.path.join(root, dir))
                     if permission_warning:
                         permission_warnings.append(permission_warning)
                 except OSError:
-                    pass
+                    errors_count += 1
             for file in files:
                 analysis_target_path = os.path.join(root, file)
                 progress.update(
@@ -185,20 +179,19 @@ def analyze_directory(
                     permission_warning = analyze_file_permissions(analysis_target_path)
                     if permission_warning:
                         permission_warnings.append(permission_warning)
-                except OSError:
-                    pass
-                result_storages, others_storage, totals_storage, errored_files_count, isbig = analyze_file(
-                    analysis_target_path,
-                    result_storages,
-                    others_storage,
-                    totals_storage,
-                    bigfiles_storage,
-                    errored_files_count,
-                    thorough,
-                    size_threshold,
-                )
-                if isbig:
-                    bigfiles_paths.append(analysis_target_path)
+                    result_storages, others_storage, totals_storage, isbig = analyze_file(
+                        analysis_target_path,
+                        result_storages,
+                        others_storage,
+                        totals_storage,
+                        bigfiles_storage,
+                        thorough,
+                        size_threshold,
+                    )
+                    if isbig:
+                        bigfiles_paths.append(analysis_target_path)
+                except (OSError, magic.MagicException):
+                    errors_count += 1
                 analyzed_files += 1
     return (
         result_storages,
@@ -207,7 +200,7 @@ def analyze_directory(
         bigfiles_storage,
         bigfiles_paths,
         permission_warnings,
-        errored_files_count,
+        errors_count,
     )
 
 
@@ -273,7 +266,7 @@ def main(
     print(f"Preliminary file count: {file_count}")
 
     analysis_start_dt = datetime.now()
-    result_storages, others_storage, totals_storage, big_files_storage, bigfiles_paths, permission_warnings, errored_files_count = analyze_directory(
+    result_storages, others_storage, totals_storage, big_files_storage, bigfiles_paths, permission_warnings, errored_files_count = analyze_filesystem(
         dir_path, file_count, thorough, size_threshold)
     analysis_duration = datetime.now() - analysis_start_dt
 
