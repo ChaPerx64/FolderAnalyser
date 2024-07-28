@@ -1,7 +1,7 @@
 import mimetypes
 import os
 import stat
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Annotated
 
@@ -38,6 +38,7 @@ class FiletypeInfoStorage:
     found_files = 0
     found_size = 0
     displayable_name: str
+    found_files_paths: list[str] = field(default_factory=list)
 
 
 def check_path(path: str) -> None:
@@ -72,17 +73,14 @@ def count_files(dir_path: str) -> int:
     return file_count
 
 
-def analyze_file(
+def analyze_files_mimetype(
         target_path: str,
         result_storages: list[FiletypeInfoStorage],
         others_storage: FiletypeInfoStorage,
         totals_storage: FiletypeInfoStorage,
-        bigfiles_storage: FiletypeInfoStorage,
         thorough: bool,
-        size_threshold: float,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, bool]:
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage]:
     counted = False
-    isbig = False
     if thorough:
         mime_type = magic.from_file(target_path, mime=True)
     else:
@@ -90,10 +88,6 @@ def analyze_file(
         if mime_type is None:
             mime_type = ""
     file_size = os.path.getsize(target_path)
-    if file_size > size_threshold * (2**30):
-        bigfiles_storage.found_files += 1
-        bigfiles_storage.found_size += file_size
-        isbig = True
     totals_storage.found_files += 1
     totals_storage.found_size += file_size
     for storage in result_storages:
@@ -108,7 +102,6 @@ def analyze_file(
         result_storages,
         others_storage,
         totals_storage,
-        isbig,
     )
 
 
@@ -134,19 +127,27 @@ def analyze_dir_permissions(dir_path: str) -> str | None:
     return warning_message
 
 
+def analyze_filesize(file_path: str, bigfiles_storage: FiletypeInfoStorage, size_threshold: float) -> FiletypeInfoStorage:
+    file_size = os.path.getsize(file_path)
+    if file_size > size_threshold * (2**30):
+        bigfiles_storage.found_files += 1
+        bigfiles_storage.found_size += file_size
+        bigfiles_storage.found_files_paths.append(file_path)
+    return bigfiles_storage
+
+
 def analyze_filesystem(
         root_dir_path: str,
         file_count: int,
         thorough: bool,
         size_threshold: float,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], list[str], int]:
+) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types.items()
     ]
     others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
     totals_storage = FiletypeInfoStorage("None", "Total")
     bigfiles_storage = FiletypeInfoStorage("None", "Big")
-    bigfiles_paths: list[str] = list()
     permission_warnings: list[str] = list()
     with Progress(
         SpinnerColumn(),
@@ -166,7 +167,8 @@ def analyze_filesystem(
         for root, dirs, files in os.walk(root_dir_path):
             for dir in dirs:
                 try:
-                    permission_warning = analyze_dir_permissions(os.path.join(root, dir))
+                    permission_warning = analyze_dir_permissions(
+                        os.path.join(root, dir))
                     if permission_warning:
                         permission_warnings.append(permission_warning)
                 except OSError:
@@ -176,20 +178,19 @@ def analyze_filesystem(
                 progress.update(
                     analysis_task_id, description=analysis_target_path, completed=analyzed_files)
                 try:
-                    permission_warning = analyze_file_permissions(analysis_target_path)
+                    permission_warning = analyze_file_permissions(
+                        analysis_target_path)
                     if permission_warning:
                         permission_warnings.append(permission_warning)
-                    result_storages, others_storage, totals_storage, isbig = analyze_file(
+                    result_storages, others_storage, totals_storage = analyze_files_mimetype(
                         analysis_target_path,
                         result_storages,
                         others_storage,
                         totals_storage,
-                        bigfiles_storage,
                         thorough,
-                        size_threshold,
                     )
-                    if isbig:
-                        bigfiles_paths.append(analysis_target_path)
+                    bigfiles_storage = analyze_filesize(
+                        analysis_target_path, bigfiles_storage, size_threshold)
                 except (OSError, magic.MagicException):
                     errors_count += 1
                 analyzed_files += 1
@@ -198,7 +199,6 @@ def analyze_filesystem(
         others_storage,
         totals_storage,
         bigfiles_storage,
-        bigfiles_paths,
         permission_warnings,
         errors_count,
     )
@@ -266,8 +266,19 @@ def main(
     print(f"Preliminary file count: {file_count}")
 
     analysis_start_dt = datetime.now()
-    result_storages, others_storage, totals_storage, big_files_storage, bigfiles_paths, permission_warnings, errored_files_count = analyze_filesystem(
-        dir_path, file_count, thorough, size_threshold)
+    (
+        result_storages,
+        others_storage,
+        totals_storage,
+        big_files_storage,
+        permission_warnings,
+        errored_files_count
+    ) = analyze_filesystem(
+        dir_path,
+        file_count,
+        thorough,
+        size_threshold
+    )
     analysis_duration = datetime.now() - analysis_start_dt
 
     display_results(
@@ -275,7 +286,7 @@ def main(
         totals_storage, big_files_storage, errored_files_count, analysis_duration, size_threshold)
 
     with open('bigfiles.txt', 'w') as f:
-        f.write("\n".join(bigfiles_paths))
+        f.write("\n".join(big_files_storage.found_files_paths))
     with open('permissions.txt', 'w') as f:
         f.write("\n".join(permission_warnings))
 
