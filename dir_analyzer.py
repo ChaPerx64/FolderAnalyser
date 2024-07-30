@@ -80,11 +80,7 @@ def count_files(dir_path: str) -> int:
     ) as progress:
         progress.add_task(
             description=f"Counting files in `{dir_path}` for estimation...", total=None)
-        file_count = 0
-        for root, dirs, files in os.walk(dir_path):
-            for file in files:
-                file_count += 1
-    return file_count
+    return sum(len(files) for _, _, files in os.walk(dir_path))
 
 
 def analyze_files_mimetype(
@@ -277,7 +273,10 @@ def main(
     check_path(dir_path)
     check_size_threshold(size_threshold)
 
+    print(f"Counting files in `{dir_path}` for estimation...")
+    analysis_start_dt = datetime.now()
     file_count = count_files(dir_path)
+    print(datetime.now() - analysis_start_dt)
     print(f"Preliminary file count: {file_count}")
 
     analysis_start_dt = datetime.now()
