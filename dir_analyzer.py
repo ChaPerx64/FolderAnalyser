@@ -164,9 +164,8 @@ def analyze_filesystem(
         speed_estimate_period=1,
         transient=True,
     ) as progress:
-        analyzed_files = 0
         analysis_task_id = progress.add_task(
-            description=root_dir_path, total=file_count, completed=analyzed_files
+            description=root_dir_path, total=file_count, completed=0
         )
         errors_count = 0
         for root, dirs, files in os.walk(root_dir_path):
@@ -181,7 +180,7 @@ def analyze_filesystem(
             for file in files:
                 analysis_target_path = os.path.join(root, file)
                 progress.update(
-                    analysis_task_id, description=analysis_target_path, completed=analyzed_files)
+                    analysis_task_id, description=analysis_target_path)
                 try:
                     permission_warning = analyze_file_permissions(
                         analysis_target_path)
@@ -198,7 +197,7 @@ def analyze_filesystem(
                         analysis_target_path, bigfiles_storage, size_threshold)
                 except (OSError, magic.MagicException):
                     errors_count += 1
-                analyzed_files += 1
+                progress.advance(analysis_task_id)
     return (
         result_storages,
         others_storage,
