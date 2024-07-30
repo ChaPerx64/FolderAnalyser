@@ -11,7 +11,7 @@ import typer
 from humanize import naturalsize
 from rich import print
 from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
-                           TimeRemainingColumn)
+                           TimeRemainingColumn, TaskID)
 from rich.table import Column, Table
 
 
@@ -140,6 +140,44 @@ def analyze_filesize(file_path: str, bigfiles_storage: FiletypeInfoStorage, size
     return bigfiles_storage
 
 
+def analyze_directories(root: str, dirs: list[str], permission_warnings: list[str]) -> int:
+    errors = 0
+    for dir in dirs:
+        try:
+            permission_warning = analyze_dir_permissions(
+                os.path.join(root, dir))
+            if permission_warning:
+                permission_warnings.append(permission_warning)
+        except OSError:
+            errors += 1
+    return errors
+
+
+def analyze_files(
+    root: str, files: list[str], progress: Progress, task_id: TaskID,
+    result_storages: list[FiletypeInfoStorage], others_storage: FiletypeInfoStorage,
+    totals_storage: FiletypeInfoStorage, bigfiles_storage: FiletypeInfoStorage,
+    permission_warnings: list[str], thorough: bool, size_threshold: float
+) -> int:
+    errors = 0
+    for file in files:
+        analysis_target_path = os.path.join(root, file)
+        progress.update(task_id, description=analysis_target_path, advance=1)
+        try:
+            permission_warning = analyze_file_permissions(analysis_target_path)
+            if permission_warning:
+                permission_warnings.append(permission_warning)
+
+            result_storages, others_storage, totals_storage = analyze_files_mimetype(
+                analysis_target_path, result_storages, others_storage, totals_storage, thorough,
+            )
+            bigfiles_storage = analyze_filesize(
+                analysis_target_path, bigfiles_storage, size_threshold)
+        except (OSError, magic.MagicException):
+            errors += 1
+    return errors
+
+
 def analyze_filesystem(
         root_dir_path: str,
         file_count: int,
@@ -154,6 +192,7 @@ def analyze_filesystem(
     totals_storage = FiletypeInfoStorage("None", "Total")
     bigfiles_storage = FiletypeInfoStorage("None", "Big")
     permission_warnings: list[str] = list()
+    errors_count = 0
     with Progress(
         SpinnerColumn(),
         TimeRemainingColumn(),
@@ -167,37 +206,17 @@ def analyze_filesystem(
         analysis_task_id = progress.add_task(
             description=root_dir_path, total=file_count, completed=0
         )
-        errors_count = 0
         for root, dirs, files in os.walk(root_dir_path):
-            for dir in dirs:
-                try:
-                    permission_warning = analyze_dir_permissions(
-                        os.path.join(root, dir))
-                    if permission_warning:
-                        permission_warnings.append(permission_warning)
-                except OSError:
-                    errors_count += 1
-            for file in files:
-                analysis_target_path = os.path.join(root, file)
-                progress.update(
-                    analysis_task_id, description=analysis_target_path)
-                try:
-                    permission_warning = analyze_file_permissions(
-                        analysis_target_path)
-                    if permission_warning:
-                        permission_warnings.append(permission_warning)
-                    result_storages, others_storage, totals_storage = analyze_files_mimetype(
-                        analysis_target_path,
-                        result_storages,
-                        others_storage,
-                        totals_storage,
-                        thorough,
-                    )
-                    bigfiles_storage = analyze_filesize(
-                        analysis_target_path, bigfiles_storage, size_threshold)
-                except (OSError, magic.MagicException):
-                    errors_count += 1
-                progress.advance(analysis_task_id)
+            errors_count += analyze_directories(
+                root, dirs, permission_warnings
+            )
+            errors_count += analyze_files(
+                root, files, progress, analysis_task_id,
+                result_storages, others_storage, totals_storage,
+                bigfiles_storage, permission_warnings,
+                thorough, size_threshold
+            )
+
     return (
         result_storages,
         others_storage,
