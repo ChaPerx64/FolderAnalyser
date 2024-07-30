@@ -90,7 +90,6 @@ def analyze_files_mimetype(
         totals_storage: FiletypeInfoStorage,
         thorough: bool,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage]:
-    counted = False
     if thorough:
         mime_type = magic.from_file(target_path, mime=True)
     else:
@@ -104,15 +103,10 @@ def analyze_files_mimetype(
         if mime_type.startswith(storage.tag):
             storage.found_files += 1
             storage.found_size += file_size
-            counted = True
-    if not counted:
-        others_storage.found_files += 1
-        others_storage.found_size += file_size
-    return (
-        result_storages,
-        others_storage,
-        totals_storage,
-    )
+            return result_storages, others_storage, totals_storage
+    others_storage.found_files += 1
+    others_storage.found_size += file_size
+    return result_storages, others_storage, totals_storage
 
 
 def analyze_file_permissions(file_path: str) -> str | None:
