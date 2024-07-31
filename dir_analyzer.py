@@ -41,6 +41,13 @@ DEFAULT_CONFIG = {
 
 
 def get_config() -> Any:
+    """
+    Load the configuration from the CONFIG_PATH file.
+    If the file doesn't exist, create it with DEFAULT_CONFIG.
+
+    Returns:
+        Any: The loaded configuration as a JSON object.
+    """
     if not os.path.exists(CONFIG_PATH):
         with open(CONFIG_PATH, 'w') as f:
             json.dump(DEFAULT_CONFIG, f, indent=2)
@@ -58,6 +65,15 @@ class FiletypeInfoStorage:
 
 
 def check_path(path: str) -> None:
+    """
+    Verify if the given path exists and is a directory.
+
+    Args:
+        path (str): The path to check.
+
+    Raises:
+        typer.Exit: If the path doesn't exist or is not a directory.
+    """
     if not os.path.exists(path):
         typer.secho("Incorrect path - does not exist", fg=typer.colors.RED)
         raise typer.Exit()
@@ -68,6 +84,15 @@ def check_path(path: str) -> None:
 
 
 def check_size_threshold(size_threshold: float) -> None:
+    """
+    Verify if the given size threshold is non-negative.
+
+    Args:
+        size_threshold (float): The size threshold to check.
+
+    Raises:
+        typer.Exit: If the size threshold is negative.
+    """
     if size_threshold < 0:
         typer.secho("Incorrect size threshold - should not be negative",
                     fg=typer.colors.RED)
@@ -75,6 +100,15 @@ def check_size_threshold(size_threshold: float) -> None:
 
 
 def count_files(dir_path: str) -> int:
+    """
+    Count the total number of files in the given directory and its subdirectories.
+
+    Args:
+        dir_path (str): The path to the directory to count files in.
+
+    Returns:
+        int: The total number of files found.
+    """
     with Progress(
         SpinnerColumn(),
         TextColumn("[progress.description]{task.description}"),
@@ -92,6 +126,19 @@ def analyze_files_mimetype(
         totals_storage: FiletypeInfoStorage,
         thorough: bool,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage]:
+    """
+    Analyze the mimetype of a file and update the corresponding storage.
+
+    Args:
+        target_path (str): The path to the file to analyze.
+        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
+        totals_storage (FiletypeInfoStorage): Storage for overall totals.
+        thorough (bool): Whether to use thorough analysis (magic library) or not.
+
+    Returns:
+        tuple: Updated result_storages, others_storage, and totals_storage.
+    """
     if thorough:
         mime_type = magic.from_file(target_path, mime=True)
     else:
@@ -112,6 +159,15 @@ def analyze_files_mimetype(
 
 
 def analyze_file_permissions(file_path: str) -> str | None:
+    """
+    Analyze the permissions of a file and return a warning message if necessary.
+
+    Args:
+        file_path (str): The path to the file to analyze.
+
+    Returns:
+        str | None: A warning message if the file has concerning permissions, None otherwise.
+    """
     mode = os.stat(file_path).st_mode
     warning_message = None
     if mode & stat.S_IWOTH:
@@ -127,13 +183,37 @@ def analyze_file_permissions(file_path: str) -> str | None:
 
 
 def analyze_dir_permissions(dir_path: str) -> str | None:
+    """
+    Analyze the permissions of a directory and return a warning message if necessary.
+
+    Args:
+        dir_path (str): The path to the directory to analyze.
+
+    Returns:
+        str | None: A warning message if the directory is world-writable, None otherwise.
+    """
     warning_message = None
     if os.stat(dir_path).st_mode & stat.S_IWOTH:
         warning_message = f"WARNING: world-writable - '{dir_path}'"
     return warning_message
 
 
-def analyze_filesize(file_path: str, bigfiles_storage: FiletypeInfoStorage, size_threshold: float) -> FiletypeInfoStorage:
+def analyze_filesize(
+        file_path: str,
+        bigfiles_storage: FiletypeInfoStorage,
+        size_threshold: float
+    ) -> FiletypeInfoStorage:
+    """
+    Analyze the size of a file and update the bigfiles_storage if it exceeds the threshold.
+
+    Args:
+        file_path (str): The path to the file to analyze.
+        bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
+        size_threshold (float): The size threshold in GB.
+
+    Returns:
+        FiletypeInfoStorage: Updated bigfiles_storage.
+    """
     file_size = os.path.getsize(file_path)
     if file_size > size_threshold * (2**30):
         bigfiles_storage.found_files += 1
@@ -143,6 +223,17 @@ def analyze_filesize(file_path: str, bigfiles_storage: FiletypeInfoStorage, size
 
 
 def analyze_directories(root: str, dirs: list[str], permission_warnings: list[str]) -> int:
+    """
+    Analyze permissions of directories and collect warnings.
+    
+    Args:
+        root (str): The root directory path.
+        dirs (list[str]): List of directory names to analyze.
+        permission_warnings (list[str]): List to collect permission warnings.
+    
+    Returns:
+        int: Number of errors encountered during analysis.
+    """
     errors = 0
     for dir in dirs:
         try:
@@ -161,6 +252,25 @@ def analyze_files(
     totals_storage: FiletypeInfoStorage, bigfiles_storage: FiletypeInfoStorage,
     permission_warnings: list[str], thorough: bool, size_threshold: float
 ) -> int:
+    """
+    Analyze files in a directory, updating various storages and collecting warnings.
+    
+    Args:
+        root (str): The root directory path.
+        files (list[str]): List of file names to analyze.
+        progress (Progress): Progress bar object.
+        task_id (TaskID): ID of the current task in the progress bar.
+        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
+        totals_storage (FiletypeInfoStorage): Storage for overall totals.
+        bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
+        permission_warnings (list[str]): List to collect permission warnings.
+        thorough (bool): Whether to use thorough analysis or not.
+        size_threshold (float): The size threshold in GB for big files.
+    
+    Returns:
+        int: Number of errors encountered during analysis.
+    """
     errors = 0
     for file in files:
         analysis_target_path = os.path.join(root, file)
@@ -186,6 +296,19 @@ def analyze_filesystem(
         thorough: bool,
         size_threshold: float,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
+    """
+    Analyze the entire filesystem starting from the given root directory.
+    
+    Args:
+        root_dir_path (str): The path to the root directory to analyze.
+        file_count (int): The total number of files (for progress estimation).
+        thorough (bool): Whether to use thorough analysis or not.
+        size_threshold (float): The size threshold in GB for big files.
+    
+    Returns:
+        tuple: Contains result_storages, others_storage, totals_storage, bigfiles_storage, 
+               permission_warnings, and the count of errors encountered.
+    """
     config = get_config()
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in config["searchable_types"].items()
@@ -238,6 +361,18 @@ def display_results(
         analysis_duration: timedelta,
         size_threshold: float,
 ) -> None:
+    """
+    Display the results of the filesystem analysis in a formatted table.
+    
+    Args:
+        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
+        totals_storage (FiletypeInfoStorage): Storage for overall totals.
+        bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
+        errored_files_count (int): Number of files that couldn't be analyzed due to errors.
+        analysis_duration (timedelta): The total duration of the analysis.
+        size_threshold (float): The size threshold in GB used for big files.
+    """
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
     result_table.add_column("Files found")
