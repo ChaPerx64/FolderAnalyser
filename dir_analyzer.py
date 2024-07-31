@@ -9,7 +9,7 @@ import json
 import magic
 import typer
 from humanize import naturalsize
-from rich import print
+from rich import print as rich_print
 from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
                            TimeRemainingColumn, TaskID)
 from rich.table import Column, Table
@@ -272,7 +272,7 @@ def display_results(
         str(totals_storage.found_files),
         str(naturalsize(totals_storage.found_size)),
     )
-    print(result_table)
+    rich_print(result_table)
     print(f"Analysis duration: {analysis_duration}")
 
 
