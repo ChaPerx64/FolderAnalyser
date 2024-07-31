@@ -16,6 +16,8 @@ from rich.table import Column, Table
 
 
 CONFIG_PATH = "./config.json"
+BIGFILES_OUTPUT_PATH = "./bigfiles.txt"
+PERMISSIONS_OUTPUT_PATH = "./permissions.txt"
 
 DEFAULT_CONFIG = {
     "searchable_types": {
@@ -308,9 +310,9 @@ def main(
         result_storages, others_storage,
         totals_storage, big_files_storage, errored_files_count, analysis_duration, size_threshold)
 
-    with open('bigfiles.txt', 'w') as f:
+    with open(BIGFILES_OUTPUT_PATH, 'w') as f:
         f.write("\n".join(big_files_storage.found_files_paths))
-    with open('permissions.txt', 'w') as f:
+    with open(PERMISSIONS_OUTPUT_PATH, 'w') as f:
         f.write("\n".join(permission_warnings))
 
 
