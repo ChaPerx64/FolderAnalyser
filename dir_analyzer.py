@@ -2,7 +2,7 @@ import mimetypes
 import os
 import stat
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Annotated, Any
 import json
 
@@ -352,15 +352,14 @@ def analyze_filesystem(
     )
 
 
-def display_results(
+def build_rich_table(
         result_storages: list[FiletypeInfoStorage],
         others_storage: FiletypeInfoStorage,
         totals_storage: FiletypeInfoStorage,
         bigfiles_storage: FiletypeInfoStorage,
         errored_files_count: int,
-        analysis_duration: timedelta,
         size_threshold: float,
-) -> None:
+) -> Table:
     """
     Display the results of the filesystem analysis in a formatted table.
     
@@ -407,8 +406,7 @@ def display_results(
         str(totals_storage.found_files),
         str(naturalsize(totals_storage.found_size)),
     )
-    rich_print(result_table)
-    print(f"Analysis duration: {analysis_duration}")
+    return result_table
 
 
 def main(
@@ -441,9 +439,11 @@ def main(
     )
     analysis_duration = datetime.now() - analysis_start_dt
 
-    display_results(
+    rich_table = build_rich_table(
         result_storages, others_storage,
-        totals_storage, big_files_storage, errored_files_count, analysis_duration, size_threshold)
+        totals_storage, big_files_storage, errored_files_count, size_threshold)
+    rich_print(rich_table)
+    print(f"Analysis duration: {analysis_duration}")
 
     with open(BIGFILES_OUTPUT_PATH, 'w') as f:
         f.write("\n".join(big_files_storage.found_files_paths))
