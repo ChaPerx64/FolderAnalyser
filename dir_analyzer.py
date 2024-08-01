@@ -283,7 +283,7 @@ def analyze_filesystem(
             TimeRemainingColumn(),
             BarColumn(),
             TextColumn(
-                "Analyzing{task.description}", table_column=Column()),
+                "Analyzing... '{task.description}'", table_column=Column()),
             refresh_per_second=60,
             speed_estimate_period=1,
             transient=True,
