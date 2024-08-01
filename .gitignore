@@ -3,3 +3,4 @@ config.json
 bigfiles.txt
 permissions.txt
 output.txt
+__pycache__
