@@ -61,6 +61,16 @@ def get_config() -> Any:
 
 @dataclass
 class FiletypeInfoStorage:
+    """
+    A data class to store information collected during filesystem analysis.
+
+    Attributes:
+        tag (str): The MIME type tag used to identify this file type.
+        found_files (int): The number of files found of this type. Defaults to 0.
+        found_size (int): The total size of files found of this type. Defaults to 0.
+        displayable_name (str): A human-readable name for this file type.
+        found_files_paths (list[str]): A list of paths to the files found of this type. Defaults to an empty list.
+    """
     tag: str
     found_files = 0
     found_size = 0
@@ -351,6 +361,20 @@ def build_rich_table(
         errored_files_count: int,
         size_threshold: float,
 ) -> Table:
+    """
+    Build a rich table with the analysis results.
+
+    Args:
+        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
+        totals_storage (FiletypeInfoStorage): Storage for overall totals.
+        bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
+        errored_files_count (int): Number of files that encountered errors during analysis.
+        size_threshold (float): The size threshold in GB for big files.
+
+    Returns:
+        Table: A rich table containing the analysis results.
+    """
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
     result_table.add_column("Files found")
@@ -397,6 +421,18 @@ def main(
     size_threshold: Annotated[float, typer.Option(
         help="File size in GiB that gets the file marked as big")] = 1,
 ) -> None:
+    """
+    Main function to analyze a directory's file system.
+
+    Args:
+        dir_path (str): Path to the directory to be analyzed.
+        thorough (bool, optional): Whether to use thorough mimetype detection. Defaults to False.
+        to_file (bool, optional): Whether to write analysis results to a file. Defaults to False.
+        size_threshold (float, optional): File size threshold in GiB for marking files as big. Defaults to 1.
+
+    Returns:
+        None
+    """
     config = get_config()
     check_path(dir_path)
     check_size_threshold(size_threshold)
