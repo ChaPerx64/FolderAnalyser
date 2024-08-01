@@ -438,7 +438,7 @@ def main(
         totals_storage, big_files_storage, errored_files_count, size_threshold)
     
     rich_print(rich_table)
-    rich_print(f"Analysis duration: {analysis_duration}")
+    print(f"Analysis duration: {analysis_duration}")
     if to_file:
         output_path = config["paths"]["analysis_output_path"]
         with open(config["paths"]["analysis_output_path"], 'w') as file:
