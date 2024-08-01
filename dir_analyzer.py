@@ -10,8 +10,8 @@ import typer
 from humanize import naturalsize
 from rich import print as rich_print
 from rich.console import Console
-from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
-                           TimeRemainingColumn, TaskID)
+from rich.progress import (BarColumn, Progress, SpinnerColumn, TaskID,
+                           TextColumn, TimeRemainingColumn)
 from rich.table import Column, Table
 
 from configuration import get_config
@@ -171,10 +171,10 @@ def analyze_dir_permissions(dir_path: str) -> str | None:
 
 
 def analyze_filesize(
-        file_path: str,
-        bigfiles_storage: FiletypeInfoStorage,
-        size_threshold: float
-    ) -> FiletypeInfoStorage:
+    file_path: str,
+    bigfiles_storage: FiletypeInfoStorage,
+    size_threshold: float
+) -> FiletypeInfoStorage:
     """
     Analyze the size of a file and update the bigfiles_storage if it exceeds the threshold.
 
@@ -197,12 +197,12 @@ def analyze_filesize(
 def analyze_directories(root: str, dirs: list[str], permission_warnings: list[str]) -> int:
     """
     Analyze permissions of directories and collect warnings.
-    
+
     Args:
         root (str): The root directory path.
         dirs (list[str]): List of directory names to analyze.
         permission_warnings (list[str]): List to collect permission warnings.
-    
+
     Returns:
         int: Number of errors encountered during analysis.
     """
@@ -226,7 +226,7 @@ def analyze_files(
 ) -> int:
     """
     Analyze files in a directory, updating various storages and collecting warnings.
-    
+
     Args:
         root (str): The root directory path.
         files (list[str]): List of file names to analyze.
@@ -239,7 +239,7 @@ def analyze_files(
         permission_warnings (list[str]): List to collect permission warnings.
         thorough (bool): Whether to use thorough analysis or not.
         size_threshold (float): The size threshold in GB for big files.
-    
+
     Returns:
         int: Number of errors encountered during analysis.
     """
@@ -278,7 +278,7 @@ def analyze_filesystem(
     permission_warnings: list[str] = list()
     errors_count = 0
     if file_count:
-        progress =  Progress(
+        progress = Progress(
             SpinnerColumn(),
             TimeRemainingColumn(),
             BarColumn(),
@@ -436,7 +436,7 @@ def main(
     rich_table = build_rich_table(
         result_storages, others_storage,
         totals_storage, big_files_storage, errored_files_count, size_threshold)
-    
+
     rich_print(rich_table)
     print(f"Analysis duration: {analysis_duration}")
     if to_file:
