@@ -14,7 +14,7 @@ from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
                            TimeRemainingColumn, TaskID)
 from rich.table import Column, Table
 
-import configuration
+from configuration import get_config
 
 
 @dataclass
@@ -406,7 +406,7 @@ def main(
     Returns:
         None
     """
-    config = configuration.get_config()
+    config = get_config()
     check_path(dir_path)
     check_size_threshold(size_threshold)
 
