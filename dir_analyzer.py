@@ -265,9 +265,9 @@ def analyze_files(
 def analyze_filesystem(
         root_dir_path: str,
         searchable_types_config: dict[str, Any],
-        file_count: int,
         thorough: bool,
         size_threshold: float,
+        file_count: int | None = None,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types_config.items()
@@ -277,30 +277,40 @@ def analyze_filesystem(
     bigfiles_storage = FiletypeInfoStorage("None", "Big")
     permission_warnings: list[str] = list()
     errors_count = 0
-    with Progress(
-        SpinnerColumn(),
-        TimeRemainingColumn(),
-        BarColumn(),
-        TextColumn(
-            "[progress.description]{task.description}", table_column=Column()),
-        refresh_per_second=60,
-        speed_estimate_period=1,
-        transient=True,
-    ) as progress:
-        analysis_task_id = progress.add_task(
-            description=root_dir_path, total=file_count, completed=0
+    if file_count:
+        progress =  Progress(
+            SpinnerColumn(),
+            TimeRemainingColumn(),
+            BarColumn(),
+            TextColumn(
+                "Analyzing{task.description}", table_column=Column()),
+            refresh_per_second=60,
+            speed_estimate_period=1,
+            transient=True,
         )
-        for root, dirs, files in os.walk(root_dir_path):
-            errors_count += analyze_directories(
-                root, dirs, permission_warnings
-            )
-            errors_count += analyze_files(
-                root, files, progress, analysis_task_id,
-                result_storages, others_storage, totals_storage,
-                bigfiles_storage, permission_warnings,
-                thorough, size_threshold
-            )
-
+    else:
+        progress = Progress(
+            SpinnerColumn(),
+            TextColumn(
+                "Analyzing... '{task.description}'", table_column=Column()),
+            refresh_per_second=60,
+            transient=True,
+        )
+    progress.start()
+    analysis_task_id = progress.add_task(
+        description=root_dir_path, total=file_count, completed=0
+    )
+    for root, dirs, files in os.walk(root_dir_path):
+        errors_count += analyze_directories(
+            root, dirs, permission_warnings
+        )
+        errors_count += analyze_files(
+            root, files, progress, analysis_task_id,
+            result_storages, others_storage, totals_storage,
+            bigfiles_storage, permission_warnings,
+            thorough, size_threshold
+        )
+    progress.stop()
     return (
         result_storages,
         others_storage,
@@ -378,6 +388,9 @@ def main(
         help="Write analysis results into file")] = False,
     size_threshold: Annotated[float, typer.Option(
         help="File size in GiB that gets the file marked as big")] = 1,
+    no_estimate: Annotated[bool, typer.Option(
+        "--no-estimate",
+        help="Count the files in the filesystem for time estimate and progress bar")] = False,
 ) -> None:
     """
     Main function to analyze a directory's file system.
@@ -395,8 +408,11 @@ def main(
     check_path(dir_path)
     check_size_threshold(size_threshold)
 
-    file_count = count_files(dir_path)
-    print(f"Preliminary file count: {file_count}")
+    if no_estimate:
+        file_count = None
+    else:
+        file_count = count_files(dir_path)
+        print(f"Preliminary file count: {file_count}")
 
     analysis_start_dt = datetime.now()
     (
@@ -409,9 +425,9 @@ def main(
     ) = analyze_filesystem(
         dir_path,
         config["searchable_types"],
-        file_count,
         thorough,
-        size_threshold
+        size_threshold,
+        file_count=file_count
     )
     analysis_duration = datetime.now() - analysis_start_dt
 
