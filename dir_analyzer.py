@@ -10,6 +10,7 @@ import magic
 import typer
 from humanize import naturalsize
 from rich import print as rich_print
+from rich.console import Console
 from rich.progress import (BarColumn, Progress, SpinnerColumn, TextColumn,
                            TimeRemainingColumn, TaskID)
 from rich.table import Column, Table
@@ -442,8 +443,16 @@ def main(
     rich_table = build_rich_table(
         result_storages, others_storage,
         totals_storage, big_files_storage, errored_files_count, size_threshold)
-    rich_print(rich_table)
-    print(f"Analysis duration: {analysis_duration}")
+    
+    if output_path == "":
+        rich_print(rich_table)
+        rich_print(f"Analysis duration: {analysis_duration}")
+    else:
+        with open(output_path, 'w') as file:
+            console = Console(file=file)
+            console.print(rich_table)
+            console.print(f"Analysis duration: {analysis_duration}")
+        print(f"Analysis results written in '{output_path}'")
 
     with open(BIGFILES_OUTPUT_PATH, 'w') as f:
         f.write("\n".join(big_files_storage.found_files_paths))
