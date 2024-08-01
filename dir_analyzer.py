@@ -17,8 +17,6 @@ from rich.table import Column, Table
 
 
 CONFIG_PATH = "./config.json"
-BIGFILES_OUTPUT_PATH = "./bigfiles.txt"
-PERMISSIONS_OUTPUT_PATH = "./permissions.txt"
 
 DEFAULT_CONFIG = {
     "searchable_types": {
@@ -37,6 +35,11 @@ DEFAULT_CONFIG = {
         "Application": {
             "tag": "application/",
         },
+    },
+    "paths": {
+        "bigfiles_output_path": "./bigfiles.txt",
+        "permissions_output_path": "./permissions.txt",
+        "analysis_output_path": "./output.txt",
     }
 }
 
@@ -293,26 +296,13 @@ def analyze_files(
 
 def analyze_filesystem(
         root_dir_path: str,
+        searchable_types_config: dict[str, Any],
         file_count: int,
         thorough: bool,
         size_threshold: float,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
-    """
-    Analyze the entire filesystem starting from the given root directory.
-    
-    Args:
-        root_dir_path (str): The path to the root directory to analyze.
-        file_count (int): The total number of files (for progress estimation).
-        thorough (bool): Whether to use thorough analysis or not.
-        size_threshold (float): The size threshold in GB for big files.
-    
-    Returns:
-        tuple: Contains result_storages, others_storage, totals_storage, bigfiles_storage, 
-               permission_warnings, and the count of errors encountered.
-    """
-    config = get_config()
     result_storages = [
-        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in config["searchable_types"].items()
+        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types_config.items()
     ]
     others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
     totals_storage = FiletypeInfoStorage("None", "Total")
@@ -361,18 +351,6 @@ def build_rich_table(
         errored_files_count: int,
         size_threshold: float,
 ) -> Table:
-    """
-    Display the results of the filesystem analysis in a formatted table.
-    
-    Args:
-        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
-        others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
-        totals_storage (FiletypeInfoStorage): Storage for overall totals.
-        bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
-        errored_files_count (int): Number of files that couldn't be analyzed due to errors.
-        analysis_duration (timedelta): The total duration of the analysis.
-        size_threshold (float): The size threshold in GB used for big files.
-    """
     result_table = Table(title="Directory analysis results")
     result_table.add_column("Media type")
     result_table.add_column("Files found")
@@ -413,11 +391,12 @@ def build_rich_table(
 def main(
     dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
     thorough: bool = False,
+    to_file: Annotated[bool, typer.Option(
+        help="Write analysis results into file")] = False,
     size_threshold: Annotated[float, typer.Option(
-        help="File size in GiB that gets the file marked")] = 1,
-    output_path: Annotated[str, typer.Option(
-        help="Path where reults will be output")] = "",
+        help="File size in GiB that gets the file marked as big")] = 1,
 ) -> None:
+    config = get_config()
     check_path(dir_path)
     check_size_threshold(size_threshold)
 
@@ -434,6 +413,7 @@ def main(
         errored_files_count
     ) = analyze_filesystem(
         dir_path,
+        config["searchable_types"],
         file_count,
         thorough,
         size_threshold
@@ -444,19 +424,19 @@ def main(
         result_storages, others_storage,
         totals_storage, big_files_storage, errored_files_count, size_threshold)
     
-    if output_path == "":
-        rich_print(rich_table)
-        rich_print(f"Analysis duration: {analysis_duration}")
-    else:
-        with open(output_path, 'w') as file:
+    rich_print(rich_table)
+    rich_print(f"Analysis duration: {analysis_duration}")
+    if to_file:
+        output_path = config["paths"]["analysis_output_path"]
+        with open(config["paths"]["analysis_output_path"], 'w') as file:
             console = Console(file=file)
             console.print(rich_table)
             console.print(f"Analysis duration: {analysis_duration}")
         print(f"Analysis results written in '{output_path}'")
 
-    with open(BIGFILES_OUTPUT_PATH, 'w') as f:
+    with open(config["paths"]["bigfiles_output_path"], 'w') as f:
         f.write("\n".join(big_files_storage.found_files_paths))
-    with open(PERMISSIONS_OUTPUT_PATH, 'w') as f:
+    with open(config["paths"]["permissions_output_path"], 'w') as f:
         f.write("\n".join(permission_warnings))
 
 
