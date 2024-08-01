@@ -383,8 +383,10 @@ def build_rich_table(
 def main(
     dir_path: Annotated[str, typer.Argument(help="Path to directory that needs to be analyzed")],
     thorough: Annotated[bool, typer.Option(
+        "--thorough",
         help="Detect mimetype based on content")] = False,
     to_file: Annotated[bool, typer.Option(
+        "--to-file",
         help="Write analysis results into file")] = False,
     size_threshold: Annotated[float, typer.Option(
         help="File size in GiB that gets the file marked as big")] = 1,
