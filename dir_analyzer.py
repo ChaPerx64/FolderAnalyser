@@ -269,6 +269,29 @@ def analyze_filesystem(
         size_threshold: float,
         file_count: int | None = None,
 ) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
+    """
+    Analyze the filesystem starting from the given root directory.
+
+    This function walks through the directory tree, analyzing file types, sizes, and permissions.
+    It collects statistics on different file types, identifies big files, and checks for potential
+    permission issues.
+
+    Args:
+        root_dir_path (str): The path to the root directory to start the analysis from.
+        searchable_types_config (dict[str, Any]): Configuration dictionary for searchable file types.
+        file_count (int): The total number of files to be analyzed (for progress tracking).
+        thorough (bool): Whether to use thorough (content-based) mimetype detection.
+        size_threshold (float): The size threshold in GB for identifying big files.
+
+    Returns:
+        tuple: A tuple containing:
+            - list[FiletypeInfoStorage]: List of storage objects for each searchable file type.
+            - FiletypeInfoStorage: Storage object for files not matching any searchable type.
+            - FiletypeInfoStorage: Storage object for overall totals.
+            - FiletypeInfoStorage: Storage object for big files.
+            - list[str]: List of permission warnings.
+            - int: Count of errors encountered during analysis.
+    """
     result_storages = [
         FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types_config.items()
     ]
