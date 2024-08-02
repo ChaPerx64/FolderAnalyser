@@ -36,4 +36,4 @@ def create_files() -> Generator[Path, Any, None]:
 
 @pytest.fixture(scope="package")
 def analysis_output(create_files: Path) -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int | list[str]]:
-    return main(str(TEMPORARY_DIR_PATH))
+    return main(str(TEMPORARY_DIR_PATH), use_default_config=True)

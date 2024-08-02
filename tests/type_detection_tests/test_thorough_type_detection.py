@@ -19,7 +19,7 @@ TESTED_TYPES = [
 
 @pytest.fixture(scope="module")
 def analysis_output() -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int | list[str]]:
-    return main(os.path.join(LOCALDIR_PATH, "data"), thorough=True)
+    return main(os.path.join(LOCALDIR_PATH, "data"), thorough=True, use_default_config=True)
 
 
 def test_result_storages_in_output(analysis_output: dict[str, Any]):
