@@ -416,7 +416,7 @@ def main(
     no_estimate: Annotated[bool, typer.Option(
         "--no-estimate",
         help="Count the files in the filesystem for time estimate and progress bar")] = False,
-) -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int]:
+) -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int | list[str]]:
     """
     Main function to analyze a directory's file system.
 
@@ -481,6 +481,7 @@ def main(
         "totals_storage": totals_storage,
         "big_files_storage": big_files_storage,
         "errored_files_count": errored_files_count,
+        "permission_warnings": permission_warnings,
     }
 
 

@@ -16,9 +16,11 @@ TESTED_TYPES = [
     ("Application", 1, 13254713),
 ]
 
+
 @pytest.fixture(scope="module")
-def analysis_output() -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int]:
+def analysis_output() -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int | list[str]]:
     return main(os.path.join(LOCALDIR_PATH, "data"), thorough=True)
+
 
 def test_result_storages_in_output(analysis_output: dict[str, Any]):
     assert "result_storages" in analysis_output
@@ -49,9 +51,11 @@ def test_findings(
     assert fileinfostorage.found_files == expected_found
     assert fileinfostorage.found_size == expected_size
 
+
 def test_others_found(analysis_output: dict[str, Any]):
     assert analysis_output["others_storage"].found_files == 0
     assert analysis_output["others_storage"].found_size == 0
+
 
 def test_error_count(analysis_output: dict[str, Any]):
     assert analysis_output["errored_files_count"] == 0
