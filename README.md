@@ -70,3 +70,62 @@ Analyze a directory with thorough mimetype detection and custom size threshold:
 ```
 python dir_analyzer.py --thorough --size-threshold 2.5 /path/to/directory
 ```
+
+## Testing
+
+The project includes test suites to verify both permission detection and file type detection functionalities. These tests are located in the `/tests/` folder.
+
+### Permission Detection Tests
+
+Located in `/tests/permission_detection_tests/`:
+
+1. `conftest.py`: Contains pytest fixtures that set up the testing environment with temporary files having specific permissions.
+2. `test_permission_detection.py`: Contains the actual test cases for permission detection.
+
+These tests verify the correct detection of world-writable files, files with SUID bits set, and files with SGID bits set.
+
+### Type Detection Tests
+
+Located in `/tests/type_detection_tests/`:
+
+1. `test_type_detection.py`: Tests the basic file type detection functionality.
+2. `test_thorough_type_detection.py`: Tests the thorough file type detection functionality.
+3. `data` directory with sample files
+
+These tests verify the correct detection and categorization of various file types, including Image, Text, Video, Audio, and Application files. They also check for correct file counts and sizes for each category.
+
+### Test Setup
+
+- Permission tests use pytest fixtures to create a temporary directory with files that have various permission settings.
+- Type detection tests use a predefined set of files in a `data` directory to verify correct categorization.
+
+### Running the Tests
+
+To run all tests, navigate to the project root directory and execute:
+
+```
+pytest
+```
+
+Don't forget to install dependencies by running
+
+```
+pip install -r requirements_testing.txt 
+```
+
+
+### Key Test Cases
+
+1. Permission Detection:
+   - Verify that the correct number of permission warnings (3) is detected.
+
+2. Type Detection:
+   - Verify correct categorization of files into Image, Text, Video, Audio, and Application types.
+   - Check for accurate file counts and total sizes for each category.
+   - Test both basic and thorough detection modes.
+
+3. General:
+   - Ensure the analysis output contains the expected structure and data types.
+   - Verify that no errors occur during file processing.
+
+These tests ensure that the dir_analyzer correctly identifies and reports files with potentially risky permissions and accurately categorizes files by type.
