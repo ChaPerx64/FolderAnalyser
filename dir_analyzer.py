@@ -14,7 +14,7 @@ from rich.progress import (BarColumn, Progress, SpinnerColumn, TaskID,
                            TextColumn, TimeRemainingColumn)
 from rich.table import Column, Table
 
-from configuration import get_config
+from configuration import DEFAULT_CONFIG, get_config
 
 
 @dataclass
@@ -416,6 +416,9 @@ def main(
     no_estimate: Annotated[bool, typer.Option(
         "--no-estimate",
         help="Count the files in the filesystem for time estimate and progress bar")] = False,
+    use_default_config: Annotated[bool, typer.Option(
+        "--use-default-config",
+        help="Ignore config.json, if present. Do not create it, if missing")] = False,
 ) -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int | list[str]]:
     """
     Main function to analyze a directory's file system.
@@ -425,11 +428,22 @@ def main(
         thorough (bool, optional): Whether to use thorough mimetype detection. Defaults to False.
         to_file (bool, optional): Whether to write analysis results to a file. Defaults to False.
         size_threshold (float, optional): File size threshold in GiB for marking files as big. Defaults to 1.
+        no_estimate (bool, optional): If True, skips file counting for time estimate and progress bar. Defaults to False.
+        use_default_config (bool, optional): If True, uses default configuration instead of config.json. Defaults to False.
 
     Returns:
-        None
+        dict: A dictionary containing the following keys:
+            - "result_storages": Dict of FiletypeInfoStorage objects for each file type.
+            - "others_storage": FiletypeInfoStorage for files not in searchable types.
+            - "totals_storage": FiletypeInfoStorage for total file statistics.
+            - "big_files_storage": FiletypeInfoStorage for files exceeding size threshold.
+            - "errored_files_count": Number of files that couldn't be processed due to errors.
+            - "permission_warnings": List of paths with permission issues.
     """
-    config = get_config()
+    if use_default_config:
+        config = DEFAULT_CONFIG
+    else:
+        config = get_config()
     check_path(dir_path)
     check_size_threshold(size_threshold)
 
