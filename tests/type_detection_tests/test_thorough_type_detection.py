@@ -10,7 +10,7 @@ LOCALDIR_PATH = os.path.dirname(os.path.realpath(__file__))
 
 TESTED_TYPES = [
     ("Image", 1, 9333),
-    ("Text", 1, 16),
+    ("Text", 2, 31),
     ("Video", 1, 9100820),
     ("Audio", 1, 4240275),
     ("Application", 1, 13254713),
@@ -18,7 +18,7 @@ TESTED_TYPES = [
 
 @pytest.fixture(scope="module")
 def analysis_output() -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int]:
-    return main(os.path.join(LOCALDIR_PATH, "data"))
+    return main(os.path.join(LOCALDIR_PATH, "data"), thorough=True)
 
 def test_result_storages_in_output(analysis_output: dict[str, Any]):
     assert "result_storages" in analysis_output
@@ -50,8 +50,8 @@ def test_findings(
     assert fileinfostorage.found_size == expected_size
 
 def test_others_found(analysis_output: dict[str, Any]):
-    assert analysis_output["others_storage"].found_files == 1
-    assert analysis_output["others_storage"].found_size == 15
+    assert analysis_output["others_storage"].found_files == 0
+    assert analysis_output["others_storage"].found_size == 0
 
 def test_error_count(analysis_output: dict[str, Any]):
     assert analysis_output["errored_files_count"] == 0
