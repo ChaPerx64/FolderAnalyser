@@ -93,11 +93,11 @@ def count_files(dir_path: str) -> int:
 
 def analyze_files_mimetype(
         target_path: str,
-        result_storages: list[FiletypeInfoStorage],
+        result_storages: dict[str, FiletypeInfoStorage],
         others_storage: FiletypeInfoStorage,
         totals_storage: FiletypeInfoStorage,
         thorough: bool,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage]:
+) -> tuple[dict[str, FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage]:
     """
     Analyze the mimetype of a file and update the corresponding storage.
 
@@ -120,7 +120,7 @@ def analyze_files_mimetype(
     file_size = os.path.getsize(target_path)
     totals_storage.found_files += 1
     totals_storage.found_size += file_size
-    for storage in result_storages:
+    for storage in result_storages.values():
         if mime_type.startswith(storage.tag):
             storage.found_files += 1
             storage.found_size += file_size
@@ -220,7 +220,7 @@ def analyze_directories(root: str, dirs: list[str], permission_warnings: list[st
 
 def analyze_files(
     root: str, files: list[str], progress: Progress, task_id: TaskID,
-    result_storages: list[FiletypeInfoStorage], others_storage: FiletypeInfoStorage,
+    result_storages: dict[str, FiletypeInfoStorage], others_storage: FiletypeInfoStorage,
     totals_storage: FiletypeInfoStorage, bigfiles_storage: FiletypeInfoStorage,
     permission_warnings: list[str], thorough: bool, size_threshold: float
 ) -> int:
@@ -268,7 +268,7 @@ def analyze_filesystem(
         thorough: bool,
         size_threshold: float,
         file_count: int | None = None,
-) -> tuple[list[FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
+) -> tuple[dict[str, FiletypeInfoStorage], FiletypeInfoStorage, FiletypeInfoStorage, FiletypeInfoStorage, list[str], int]:
     """
     Analyze the filesystem starting from the given root directory.
 
@@ -292,9 +292,9 @@ def analyze_filesystem(
             - list[str]: List of permission warnings.
             - int: Count of errors encountered during analysis.
     """
-    result_storages = [
-        FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types_config.items()
-    ]
+    result_storages = {
+        name: FiletypeInfoStorage(tag=value['tag'], displayable_name=name) for name, value in searchable_types_config.items()
+    }
     others_storage = FiletypeInfoStorage(tag="None", displayable_name="Other")
     totals_storage = FiletypeInfoStorage("None", "Total")
     bigfiles_storage = FiletypeInfoStorage("None", "Big")
@@ -345,7 +345,7 @@ def analyze_filesystem(
 
 
 def build_rich_table(
-        result_storages: list[FiletypeInfoStorage],
+        result_storages: dict[str, FiletypeInfoStorage],
         others_storage: FiletypeInfoStorage,
         totals_storage: FiletypeInfoStorage,
         bigfiles_storage: FiletypeInfoStorage,
@@ -370,7 +370,7 @@ def build_rich_table(
     result_table.add_column("Media type")
     result_table.add_column("Files found")
     result_table.add_column("Size")
-    for storage in result_storages:
+    for storage in result_storages.values():
         result_table.add_row(
             storage.displayable_name,
             str(storage.found_files),
@@ -416,7 +416,7 @@ def main(
     no_estimate: Annotated[bool, typer.Option(
         "--no-estimate",
         help="Count the files in the filesystem for time estimate and progress bar")] = False,
-) -> None:
+) -> dict[str, dict[str, FiletypeInfoStorage] | FiletypeInfoStorage | int]:
     """
     Main function to analyze a directory's file system.
 
@@ -474,6 +474,14 @@ def main(
         f.write("\n".join(big_files_storage.found_files_paths))
     with open(config["paths"]["permissions_output_path"], 'w') as f:
         f.write("\n".join(permission_warnings))
+
+    return {
+        "result_storages": result_storages,
+        "others_storage": others_storage,
+        "totals_storage": totals_storage,
+        "big_files_storage": big_files_storage,
+        "errored_files_count": errored_files_count,
+    }
 
 
 if __name__ == "__main__":
