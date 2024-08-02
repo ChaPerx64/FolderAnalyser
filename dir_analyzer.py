@@ -103,7 +103,7 @@ def analyze_files_mimetype(
 
     Args:
         target_path (str): The path to the file to analyze.
-        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        result_storages (dict[str, FiletypeInfoStorage]): Dictionary of storages for different file types.
         others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
         totals_storage (FiletypeInfoStorage): Storage for overall totals.
         thorough (bool): Whether to use thorough analysis (magic library) or not.
@@ -232,7 +232,7 @@ def analyze_files(
         files (list[str]): List of file names to analyze.
         progress (Progress): Progress bar object.
         task_id (TaskID): ID of the current task in the progress bar.
-        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        result_storages (dict[str, FiletypeInfoStorage]): Dictionary of storages for different file types.
         others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
         totals_storage (FiletypeInfoStorage): Storage for overall totals.
         bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
@@ -279,13 +279,13 @@ def analyze_filesystem(
     Args:
         root_dir_path (str): The path to the root directory to start the analysis from.
         searchable_types_config (dict[str, Any]): Configuration dictionary for searchable file types.
-        file_count (int): The total number of files to be analyzed (for progress tracking).
         thorough (bool): Whether to use thorough (content-based) mimetype detection.
         size_threshold (float): The size threshold in GB for identifying big files.
+        file_count (int | None): The total number of files to be analyzed (for progress tracking).
 
     Returns:
         tuple: A tuple containing:
-            - list[FiletypeInfoStorage]: List of storage objects for each searchable file type.
+            - dict[str, FiletypeInfoStorage]: Dictionary of storage objects for each searchable file type.
             - FiletypeInfoStorage: Storage object for files not matching any searchable type.
             - FiletypeInfoStorage: Storage object for overall totals.
             - FiletypeInfoStorage: Storage object for big files.
@@ -356,7 +356,7 @@ def build_rich_table(
     Build a rich table with the analysis results.
 
     Args:
-        result_storages (list[FiletypeInfoStorage]): List of storages for different file types.
+        result_storages (dict[str, FiletypeInfoStorage]): Dictionary of storages for different file types.
         others_storage (FiletypeInfoStorage): Storage for files that don't match known types.
         totals_storage (FiletypeInfoStorage): Storage for overall totals.
         bigfiles_storage (FiletypeInfoStorage): Storage for big files information.
